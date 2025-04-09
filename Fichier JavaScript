@@ -1,67 +1,267 @@
-
-let compteurMatiere = 0;
-
-function ajouterMatiere() {
-    compteurMatiere++;
-
-    const container = document.getElementById('matiere-container');
-    const divMatiere = document.createElement('div');
-    divMatiere.classList.add('matiere');
-    divMatiere.innerHTML = `
-        <h3>Matière ${compteurMatiere}</h3>
-        <label for="nom-matiere-${compteurMatiere}">Nom de la matière :</label>
-        <input type="text" id="nom-matiere-${compteurMatiere}" placeholder="Ex : Mathématiques" required>
-        <label for="coef-matiere-${compteurMatiere}">Coefficient :</label>
-        <input type="number" id="coef-matiere-${compteurMatiere}" placeholder="Coefficient" required min="1">
-
-        <div class="controle-container" id="controle-container-${compteurMatiere}">
-            <button onclick="ajouterControle(${compteurMatiere})">Ajouter un Contrôle</button>
-        </div>
-        <hr>
-    `;
-    container.appendChild(divMatiere);
-}
-
-function ajouterControle(idMatiere) {
-    const container = document.getElementById(`controle-container-${idMatiere}`);
-    const controleDiv = document.createElement('div');
-    controleDiv.classList.add('controle');
-    controleDiv.innerHTML = `
-        <label>Note :</label>
-        <input type="number" class="note-controle" required min="0" max="20">
-        <label>Coefficient :</label>
-        <input type="number" class="coef-controle" required min="1">
-        <br>
-    `;
-    container.insertBefore(controleDiv, container.children[container.children.length - 1]);
-}
-
-function calculerMoyenne() {
-    let totalGeneral = 0;
-    let totalCoefficients = 0;
-
-    const matieres = document.getElementsByClassName('matiere');
-    for (let i = 0; i < matieres.length; i++) {
-        const coefMatiere = parseFloat(document.getElementById(`coef-matiere-${i+1}`).value);
-        const controles = matieres[i].getElementsByClassName('controle');
-        let totalMatiere = 0;
-        let totalCoefControles = 0;
-
-        for (let j = 0; j < controles.length; j++) {
-            const noteControle = parseFloat(controles[j].getElementsByClassName('note-controle')[0].value);
-            const coefControle = parseFloat(controles[j].getElementsByClassName('coef-controle')[0].value);
-
-            totalMatiere += noteControle * coefControle;
-            totalCoefControles += coefControle;
-        }
-
-        if (totalCoefControles > 0) {
-            const moyenneMatiere = totalMatiere / totalCoefControles;
-            totalGeneral += moyenneMatiere * coefMatiere;
-            totalCoefficients += coefMatiere;
+document.addEventListener('DOMContentLoaded', function() {
+    // Stockage des données
+    let blocs = JSON.parse(localStorage.getItem('blocs')) || [];
+    
+    // Éléments du DOM
+    const blocsContainer = document.getElementById('blocs-container');
+    const nomBlocInput = document.getElementById('nom-bloc');
+    const ajouterBlocBtn = document.getElementById('ajouter-bloc');
+    const moyennesBlocDiv = document.getElementById('moyennes-bloc');
+    const moyenneGeneraleSpan = document.getElementById('moyenne-value');
+    const mentionCibleSelect = document.getElementById('mention-cible');
+    const calculerObjectifBtn = document.getElementById('calculer-objectif');
+    const resultatObjectifDiv = document.getElementById('resultat-objectif');
+    
+    // Charger les données au démarrage
+    afficherBlocs();
+    calculerMoyennes();
+    
+    // Événements
+    ajouterBlocBtn.addEventListener('click', ajouterBloc);
+    calculerObjectifBtn.addEventListener('click', calculerObjectifMention);
+    
+    // Fonctions
+    
+    function ajouterBloc() {
+        const nomBloc = nomBlocInput.value.trim();
+        if (!nomBloc) return;
+        
+        const nouveauBloc = {
+            id: Date.now(),
+            nom: nomBloc,
+            matieres: []
+        };
+        
+        blocs.push(nouveauBloc);
+        sauvegarderDonnees();
+        afficherBlocs();
+        nomBlocInput.value = '';
+    }
+    
+    function afficherBlocs() {
+        blocsContainer.innerHTML = '';
+        
+        blocs.forEach(bloc => {
+            const blocDiv = document.createElement('div');
+            blocDiv.className = 'bloc';
+            blocDiv.innerHTML = `
+                <h3>${bloc.nom}</h3>
+                <div class="form-group">
+                    <input type="text" class="nom-matiere" placeholder="Nom de la matière">
+                    <input type="number" class="coeff-matiere" placeholder="Coefficient" min="1" value="1">
+                    <button class="ajouter-matiere" data-bloc-id="${bloc.id}">Ajouter matière</button>
+                </div>
+                <div class="matieres-container" id="matieres-${bloc.id}">
+                    ${genererHTMLMatieres(bloc.matieres, bloc.id)}
+                </div>
+                <div class="moyenne-bloc" id="moyenne-bloc-${bloc.id}"></div>
+            `;
+            
+            blocsContainer.appendChild(blocDiv);
+            
+            // Ajouter l'événement pour le bouton d'ajout de matière
+            blocDiv.querySelector('.ajouter-matiere').addEventListener('click', function() {
+                ajouterMatiere(bloc.id);
+            });
+        });
+    }
+    
+    function genererHTMLMatieres(matieres, blocId) {
+        return matieres.map(matiere => `
+            <div class="matiere" data-matiere-id="${matiere.id}">
+                <span>${matiere.nom} (coeff ${matiere.coefficient})</span>
+                <input type="number" class="note-input" placeholder="Note" min="0" max="20" step="0.1" 
+                    value="${matiere.note || ''}" data-matiere-id="${matiere.id}">
+                <input type="number" class="coeff-note-input" placeholder="Coeff note" min="1" value="${matiere.coeffNote || 1}" 
+                    data-matiere-id="${matiere.id}">
+                <button class="supprimer-matiere" data-bloc-id="${blocId}" data-matiere-id="${matiere.id}">Supprimer</button>
+            </div>
+        `).join('');
+    }
+    
+    function ajouterMatiere(blocId) {
+        const bloc = blocs.find(b => b.id === blocId);
+        if (!bloc) return;
+        
+        const blocDiv = document.querySelector(`.bloc [data-bloc-id="${blocId}"]`).parentNode;
+        const nomMatiere = blocDiv.querySelector('.nom-matiere').value.trim();
+        const coeffMatiere = parseInt(blocDiv.querySelector('.coeff-matiere').value) || 1;
+        
+        if (!nomMatiere) return;
+        
+        const nouvelleMatiere = {
+            id: Date.now(),
+            nom: nomMatiere,
+            coefficient: coeffMatiere,
+            note: null,
+            coeffNote: 1
+        };
+        
+        bloc.matieres.push(nouvelleMatiere);
+        sauvegarderDonnees();
+        afficherBlocs();
+        
+        // Vider les champs
+        blocDiv.querySelector('.nom-matiere').value = '';
+        blocDiv.querySelector('.coeff-matiere').value = '1';
+        
+        // Ajouter les événements pour les nouvelles matières
+        ajouterEvenementsMatieres();
+    }
+    
+    function ajouterEvenementsMatieres() {
+        // Événements pour les inputs de note
+        document.querySelectorAll('.note-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const matiereId = parseInt(this.dataset.matiereId);
+                const nouvelleNote = parseFloat(this.value);
+                
+                blocs.forEach(bloc => {
+                    const matiere = bloc.matieres.find(m => m.id === matiereId);
+                    if (matiere) {
+                        matiere.note = nouvelleNote;
+                        sauvegarderDonnees();
+                        calculerMoyennes();
+                    }
+                });
+            });
+        });
+        
+        // Événements pour les inputs de coefficient de note
+        document.querySelectorAll('.coeff-note-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const matiereId = parseInt(this.dataset.matiereId);
+                const nouveauCoeff = parseInt(this.value) || 1;
+                
+                blocs.forEach(bloc => {
+                    const matiere = bloc.matieres.find(m => m.id === matiereId);
+                    if (matiere) {
+                        matiere.coeffNote = nouveauCoeff;
+                        sauvegarderDonnees();
+                        calculerMoyennes();
+                    }
+                });
+            });
+        });
+        
+        // Événements pour les boutons de suppression
+        document.querySelectorAll('.supprimer-matiere').forEach(button => {
+            button.addEventListener('click', function() {
+                const blocId = parseInt(this.dataset.blocId);
+                const matiereId = parseInt(this.dataset.matiereId);
+                
+                const bloc = blocs.find(b => b.id === blocId);
+                if (bloc) {
+                    bloc.matieres = bloc.matieres.filter(m => m.id !== matiereId);
+                    sauvegarderDonnees();
+                    afficherBlocs();
+                    calculerMoyennes();
+                }
+            });
+        });
+    }
+    
+    function calculerMoyennes() {
+        let totalCoefficient = 0;
+        let totalPoints = 0;
+        let moyennesParBloc = [];
+        
+        blocs.forEach(bloc => {
+            let pointsBloc = 0;
+            let coeffBloc = 0;
+            
+            bloc.matieres.forEach(matiere => {
+                if (matiere.note !== null && !isNaN(matiere.note)) {
+                    const notePonderee = matiere.note * matiere.coeffNote;
+                    const coeffTotal = matiere.coefficient * matiere.coeffNote;
+                    
+                    pointsBloc += notePonderee * matiere.coefficient;
+                    coeffBloc += coeffTotal;
+                }
+            });
+            
+            if (coeffBloc > 0) {
+                const moyenneBloc = pointsBloc / coeffBloc;
+                moyennesParBloc.push({
+                    nom: bloc.nom,
+                    moyenne: moyenneBloc,
+                    coefficient: coeffBloc
+                });
+                
+                totalPoints += pointsBloc;
+                totalCoefficient += coeffBloc;
+            }
+            
+            // Afficher la moyenne du bloc
+            const moyenneBlocDiv = document.getElementById(`moyenne-bloc-${bloc.id}`);
+            if (moyenneBlocDiv) {
+                if (coeffBloc > 0) {
+                    moyenneBlocDiv.textContent = `Moyenne ${bloc.nom}: ${(pointsBloc / coeffBloc).toFixed(2)}`;
+                } else {
+                    moyenneBlocDiv.textContent = `Moyenne ${bloc.nom}: -`;
+                }
+            }
+        });
+        
+        // Afficher les moyennes par bloc
+        moyennesBlocDiv.innerHTML = moyennesParBloc.map(bloc => `
+            <div class="moyenne-bloc">${bloc.nom}: ${bloc.moyenne.toFixed(2)} (coeff ${bloc.coefficient})</div>
+        `).join('');
+        
+        // Afficher la moyenne générale
+        if (totalCoefficient > 0) {
+            const moyenneGenerale = totalPoints / totalCoefficient;
+            moyenneGeneraleSpan.textContent = moyenneGenerale.toFixed(2);
+        } else {
+            moyenneGeneraleSpan.textContent = '-';
         }
     }
-
-    const moyenneGenerale = totalCoefficients > 0 ? totalGeneral / totalCoefficients : 0;
-    document.getElementById('moyenne-generale').innerText = moyenneGenerale.toFixed(2);
-}
+    
+    function calculerObjectifMention() {
+        const mentionCible = parseFloat(mentionCibleSelect.value);
+        let totalCoefficient = 0;
+        let totalPoints = 0;
+        let coeffRestant = 0;
+        
+        // Calculer les points et coefficients actuels
+        blocs.forEach(bloc => {
+            bloc.matieres.forEach(matiere => {
+                if (matiere.note !== null && !isNaN(matiere.note)) {
+                    totalPoints += matiere.note * matiere.coefficient * matiere.coeffNote;
+                    totalCoefficient += matiere.coefficient * matiere.coeffNote;
+                } else {
+                    coeffRestant += matiere.coefficient * (matiere.coeffNote || 1);
+                }
+            });
+        });
+        
+        if (coeffRestant === 0) {
+            resultatObjectifDiv.innerHTML = '<p>Toutes les notes sont déjà saisies. Votre moyenne finale est calculée.</p>';
+            return;
+        }
+        
+        // Calculer la note minimale nécessaire
+        const pointsNecessaires = mentionCible * (totalCoefficient + coeffRestant) - totalPoints;
+        const noteMinimale = pointsNecessaires / coeffRestant;
+        
+        if (noteMinimale <= 20) {
+            resultatObjectifDiv.innerHTML = `
+                <p>Pour atteindre une moyenne de ${mentionCible}, vous devez obtenir <strong>${noteMinimale.toFixed(2)}/20</strong> 
+                en moyenne dans les matières restantes (${coeffRestant} coefficients restants).</p>
+                ${noteMinimale > 16 ? '<p class="warning">Cet objectif semble très ambitieux!</p>' : ''}
+            `;
+        } else {
+            resultatObjectifDiv.innerHTML = `
+                <p>Il est mathématiquement impossible d'atteindre ${mentionCible} avec les coefficients restants.</p>
+                <p>La meilleure moyenne possible est ${((totalPoints + 20 * coeffRestant) / (totalCoefficient + coeffRestant)).toFixed(2)}.</p>
+            `;
+        }
+    }
+    
+    function sauvegarderDonnees() {
+        localStorage.setItem('blocs', JSON.stringify(blocs));
+    }
+    
+    // Initialiser les événements pour les matières existantes
+    ajouterEvenementsMatieres();
+});
