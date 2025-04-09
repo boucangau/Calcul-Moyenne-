@@ -3,18 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculateur de Moyenne Personnalisé</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Calculateur de moyenne universitaire</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Calculateur de Moyenne</h1>
-        <div id="matiere-container"></div>
+        <header>
+            <h1>Calculateur de moyenne universitaire</h1>
+            <p>Pour les doubles licences et parcours à coefficients variables</p>
+        </header>
 
-        <button onclick="ajouterMatiere()">Ajouter une Matière</button>
-        <button onclick="calculerMoyenne()">Calculer la Moyenne Générale</button>
+        <section id="bloc-creation">
+            <h2>Créer un nouveau bloc de matières</h2>
+            <div class="form-group">
+                <input type="text" id="nom-bloc" placeholder="Nom du bloc (ex: Droit, Économie)">
+                <button id="ajouter-bloc">Ajouter bloc</button>
+            </div>
+        </section>
 
-        <h2>Moyenne Générale: <span id="moyenne-generale">0</span></h2>
+        <section id="blocs-container">
+            <!-- Les blocs de matières seront ajoutés ici dynamiquement -->
+        </section>
+
+        <section id="resultats">
+            <h2>Résultats</h2>
+            <div id="moyennes-bloc">
+                <!-- Moyennes par bloc apparaîtront ici -->
+            </div>
+            <div id="moyenne-generale">
+                <h3>Moyenne générale: <span id="moyenne-value">-</span></h3>
+            </div>
+        </section>
+
+        <section id="objectif-mention">
+            <h2>Objectif de mention</h2>
+            <div class="form-group">
+                <select id="mention-cible">
+                    <option value="12">Assez bien (12+)</option>
+                    <option value="14">Bien (14+)</option>
+                    <option value="16">Très bien (16+)</option>
+                </select>
+                <button id="calculer-objectif">Calculer l'objectif</button>
+            </div>
+            <div id="resultat-objectif">
+                <!-- Résultat du calcul d'objectif -->
+            </div>
+        </section>
     </div>
 
     <script src="script.js"></script>
